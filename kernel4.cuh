@@ -1,43 +1,18 @@
 #include <iostream>
 #include <cublas_v2.h>
-#include <pthread.h>
-#include <unistd.h>
 
 #include "common.h"
 
 const int num_submatrix = 2;
 const int numStreams = 2;
-const int num_threads = numStreams;
-
-struct thread_args
-{
-    int threadId;
-    unsigned long long overflowA;
-    unsigned long long numSubMatrixA;
-    unsigned long long subRows;
-    unsigned long long subCols;
-    unsigned long long m;
-    unsigned long long n;
-    unsigned long long k;
-    unsigned long long y;
-    unsigned long long i;
-    float *C;
-    float *A;
-};
-
-volatile int running_threads = 0;
-pthread_mutex_t running_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 cudaStream_t streams[numStreams];
-float *b[num_threads];
-float *a[num_threads];
-float *c[num_threads];
-float *a_h[num_threads];
-float *c_h[num_threads];
-struct thread_args targs[num_threads];
-pthread_t threads[num_threads];
-char threads_active[num_threads];
-cublasHandle_t handles[num_threads];
+float *b[numStreams];
+float *a[numStreams];
+float *c[numStreams];
+float *a_h[numStreams];
+float *c_h[numStreams];
+cublasHandle_t handles[numStreams];
 
 void msplitm(char transa, char transb, unsigned long long m, unsigned long long n, unsigned long long k, float alpha, float *A, int lda, const float *B, int ldb, float beta, float *C, int ldc)
 {
@@ -80,7 +55,6 @@ void msplitm(char transa, char transb, unsigned long long m, unsigned long long 
         cudaMalloc((void **)&c[i], sizeof(float) * subCols * subRows);
         cudaMallocHost((void **)&a_h[i], sizeof(float) * subRows * k);
         cudaMallocHost((void **)&c_h[i], sizeof(float) * subCols * subRows);
-        threads_active[i] = 0;
     }
 
     for (unsigned long long i = 0; i < numSubMatrixB + 1; ++i)
