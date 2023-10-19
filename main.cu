@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <iostream>
 #include <stdlib.h>
 
 #ifdef KERNEL1
@@ -23,8 +23,7 @@ int main(int argc, char *argv[])
 
     // Initialize host variables ----------------------------------------------
 
-    printf("\nSetting up the problem...");
-    fflush(stdout);
+    std::cout << "\nSetting up the problem..." << std::endl;
     startTime(&timer);
 
     float *A_h, *B_h, *C_h;
@@ -54,12 +53,11 @@ int main(int argc, char *argv[])
     }
     else
     {
-        printf("\n    Invalid input parameters!"
-               "\n    Usage: ./sgemm-tiled                # All matrices are 1000 x 1000"
-               "\n    Usage: ./sgemm-tiled <m>            # All matrices are m x m"
-               "\n    Usage: ./sgemm-tiled <m> <k> <n>    # A: m x k, B: k x n, C: m x n"
-               "\n");
-        exit(0);
+        std::cout << "    Invalid input parameters!" << std::endl;
+        std::cout << "    Usage: ./sgemm-tiled                # All matrices are 1000 x 1000" << std::endl;
+        std::cout << "    Usage: ./sgemm-tiled <m>            # All matrices are m x m" << std::endl;
+        std::cout << "    Usage: ./sgemm-tiled <m> <k> <n>    # A: m x k, B: k x n, C: m x n" << std::endl;
+        exit(EXIT_FAILURE);
     }
 
     A_sz = matArow * matAcol;
@@ -81,19 +79,19 @@ int main(int argc, char *argv[])
     cudaMallocHost((void **)&C_h, sizeof(float) * C_sz);
 
     stopTime(&timer);
-    printf("%f s\n", elapsedTime(timer));
-    printf("    A: %u x %u\n    B: %u x %u\n    C: %u x %u\n", matArow, matAcol,
-           matBrow, matBcol, matArow, matBcol);
+    std::cout << elapsedTime(timer) << "s" << std::endl;
+    std::cout << "    A: matArow x matAcol" << std::endl;
+    std::cout << "    B: matBrow x matBcol" << std::endl;
+    std::cout << "    C: matArow x matBcol" << std::endl;
 
     // Launch kernel using msplitm ---------------------------
-    printf("Launching kernel...");
-    fflush(stdout);
+    std::cout << "Launching kernel..." << std::endl;
     startTime(&timer);
     msplitm('N', 'N', matArow, matBcol, matBrow, 1.0f, A_h, matArow, B_h, matBrow, 0.0f, C_h, matBrow);
 
     cuda_ret = cudaDeviceSynchronize();
     stopTime(&timer);
-    printf("%f s\n", elapsedTime(timer));
+    std::cout << elapsedTime(timer) << " s" << std::endl;
 
     // Verify correctness -----------------------------------------------------
     verify(A_h, B_h, C_h, matArow, matAcol, matBcol);

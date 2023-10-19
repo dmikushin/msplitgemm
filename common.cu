@@ -1,18 +1,18 @@
-#include <stdio.h>
-#include <cuda_runtime.h>
-#include "cublas_v2.h"
+#include <iostream>
+#include <cublas_v2.h>
+
 #include "common.h"
 
 void PrintMatrix(char name[], int rows, int cols, const float *m)
 {
-  printf("%s\n", name);
+  std::cout << name << std::endl;
   for (int row = 0; row < rows; ++row)
   {
     for (int col = 0; col < cols; ++col)
     {
-      printf("%f ", m[row * cols + col]);
+      std::cout << m[row * cols + col];
     }
-    printf("\n");
+    std::cout << std::endl;
   }
 }
 
@@ -80,7 +80,7 @@ float *doMultiply2MatricesStreaming(
                                     A1, a1Cols,
                                     &beta,
                                     C, a2Cols);
-  printf("cublas status = %d\n", stat);
+  std::cout << "cublas status = " << stat << std::endl;
 
   return C;
 }

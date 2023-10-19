@@ -1,6 +1,5 @@
-#include <stdio.h>
-#include <cuda_runtime.h>
-#include "cublas_v2.h"
+#include <iostream>
+#include <cublas_v2.h>
 #include <pthread.h>
 #include <unistd.h>
 
@@ -42,8 +41,7 @@ cublasHandle_t handles[num_threads];
 
 void msplitm(char transa, char transb, unsigned long long m, unsigned long long n, unsigned long long k, float alpha, float *A, int lda, const float *B, int ldb, float beta, float *C, int ldc)
 {
-
-    printf("entering msplitm \n");
+    std::cout << "entering msplitm" << std::endl;
     float *A_d;
     float *B_d;
     float *C_d;
@@ -53,25 +51,25 @@ void msplitm(char transa, char transb, unsigned long long m, unsigned long long 
     unsigned long long MAX = (unsigned long long)m * (unsigned long long)n / num_submatrix;
 
     MAX -= MAX % k;
-    printf("MAX: %llu\n", MAX);
-    printf("B_sz: %llu\n", B_sz);
+    std::cout << "MAX: " << MAX << std::endl;
+    std::cout << "B_sz: " << B_sz << std::endl;
     unsigned long long numSubMatrixB = B_sz / MAX;
-    printf("SubmatriciesB: %llu\n", numSubMatrixB);
+    std::cout << "SubmatriciesB: " << numSubMatrixB << std::endl;
     unsigned long long SMB_sz = B_sz / numSubMatrixB;
-    printf("SMB_sz: %llu\n", SMB_sz);
+    std::cout << "SMB_sz: " << SMB_sz << std::endl;
     unsigned long long subCols = B_sz / (numSubMatrixB * k);
-    printf("subCols: %llu\n", subCols);
+    std::cout << "subCols: " << subCols << std::endl;
 
     unsigned long long numSubMatrixA = A_sz / MAX;
     unsigned long long SMA_sz = A_sz / numSubMatrixA;
     unsigned long long subRows = A_sz / (numSubMatrixA * k);
-    printf("subrows: %llu\n", subRows);
-    printf("SMA_sz: %llu\n", SMA_sz);
-    printf("submatriciesA: %llu\n", numSubMatrixA);
+    std::cout << "subrows: " << subRows << std::endl;
+    std::cout << "SMA_sz: " << SMA_sz << std::endl;
+    std::cout << "submatriciesA: " << numSubMatrixA << std::endl;
     unsigned long long overflowA = m % subRows;
     unsigned long long overflowB = n % subCols;
-    printf("overflowB: %llu\n", overflowB);
-    printf("overflowA: %llu\n", overflowA);
+    std::cout << "overflowB: " << overflowB << std::endl;
+    std::cout << "overflowA: " << overflowA << std::endl;
     for (int i = 0; i < numStreams; ++i)
     {
         cudaSetDevice(i);
@@ -121,7 +119,8 @@ void msplitm(char transa, char transb, unsigned long long m, unsigned long long 
             cudaMemcpy2DAsync(a[y % numStreams], k * sizeof(float), A + (k * y * subRows), k * sizeof(float),
                               k * sizeof(float), copynumA, cudaMemcpyHostToDevice, streams[y % numStreams]);
 
-            printf("sending multiply %llu,%llu to stream %d\n", y, i, y % numStreams);
+            std::cout << "sending multiply " << y << ", " << i << " to stream " <<
+                y % numStreams << std::endl;
             doMultiply2MatricesStreaming(subRows, k, a[y % numStreams], k, subCols, b[y % numStreams], c[y % numStreams], streams[y % numStreams], handles[y % numStreams], alpha);
             cudaMemcpyAsync(c_h[y % numStreams], c[y % numStreams], sizeof(float) * subRows * subCols, cudaMemcpyDeviceToHost, streams[y % numStreams]);
 
