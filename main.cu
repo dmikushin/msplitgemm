@@ -10,9 +10,6 @@
 #ifdef KERNEL3
 #include "kernel3.cuh"
 #endif
-#ifdef KERNEL4
-#include "kernel4.cuh"
-#endif
 
 #include "support.h"
 

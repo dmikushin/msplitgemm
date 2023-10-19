@@ -42,18 +42,10 @@ This algorithm allocates memory for one submatrix of the first multiplicand and 
 
 ![Alt text](/figures/Alg2.jpg?raw=true "Algorithm 2 Visual Profile")
 
-# Algorithm 3: Multithreaded streaming version of Algorithm 1 
+# Algorithm 3: Streaming Version of Algorithm 1
 
-Algorithm 3 is the first algorithm, but pipelined with CUDA streams, with each thread in the operation having a corresponding CUDA stream. This increases the performance of the first algorithm in most cases when the number of threads and streams is optimal for the number of submatrices and the size of the problem. A downside is that this algorithm uses more memory than the first on both the host and the GPU, because each thread or stream needs a context to work in.
+Algorithm 3 does not use multiple threads on the CPU; instead, it exploits the natural paralellism of the CUDA streams to create the illusion of multiple CPU threads.
 
     Gpu and Add. Host Mem Usage =(numStreams/numSubmatricies^2 + (1 + numStreams)/numSubmatrices) * N^2 * sizeof(type)
 
 ![Alt text](/figures/Alg3.jpg?raw=true "Algorithm 3 Visual Profile")
-
-# Algorithm 4: Streaming Version of Algorithm 1
-
-Algorithm 4 does not use multiple threads on the CPU; instead, it exploits the natural paralellism of the CUDA streams to create the illusion of multiple CPU threads.
-
-    Gpu and Add. Host Mem Usage =(numStreams/numSubmatricies^2 + (1 + numStreams)/numSubmatrices) * N^2 * sizeof(type)
-
-![Alt text](/figures/Alg4.jpg?raw=true "Algorithm 4 Visual Profile")

@@ -17,11 +17,7 @@ add_executable(${PROJECT_NAME}_alg2 main.cu kernel2.cuh support.h common.h)
 target_compile_definitions(${PROJECT_NAME}_alg2 PRIVATE KERNEL2=0)
 target_link_libraries(${PROJECT_NAME}_alg2 ${PROJECT_NAME})
 
-add_executable(${PROJECT_NAME}_alg3_multi main.cu kernel3.cuh support.h common.h)
-target_compile_definitions(${PROJECT_NAME}_alg3_multi PRIVATE KERNEL3=0)
-target_link_libraries(${PROJECT_NAME}_alg3_multi ${PROJECT_NAME})
-
-add_executable(${PROJECT_NAME}_alg3_seq main.cu kernel4.cuh support.h common.h)
-target_compile_definitions(${PROJECT_NAME}_alg3_seq PRIVATE KERNEL4=0)
-target_link_libraries(${PROJECT_NAME}_alg3_seq ${PROJECT_NAME})
+add_executable(${PROJECT_NAME}_alg3 main.cu kernel3.cuh support.h common.h)
+target_compile_definitions(${PROJECT_NAME}_alg3 PRIVATE KERNEL3=0)
+target_link_libraries(${PROJECT_NAME}_alg3 ${PROJECT_NAME})
 
