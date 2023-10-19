@@ -10,8 +10,8 @@ const int num_submatrix = 16;
 const int numStreams = 2;
 const int num_threads = numStreams;
 
-
-struct thread_args{
+struct thread_args
+{
 	int threadId;
 	unsigned long long overflowA;
 	unsigned long long overflowB;
@@ -26,7 +26,6 @@ struct thread_args{
 	unsigned long long i;
 	float *C;
 	float *A;
-
 };
 
 float ALPHA = 0;
@@ -34,26 +33,25 @@ float BETA = 0;
 volatile int running_threads = 0;
 pthread_mutex_t running_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-
-float* b = 0;
-float* a[num_threads];
-float* c[num_threads];
-float* a_h[num_threads];
-float* c_h[num_threads];
+float *b = 0;
+float *a[num_threads];
+float *c[num_threads];
+float *a_h[num_threads];
+float *c_h[num_threads];
 struct thread_args targs[num_threads];
 pthread_t threads[num_threads];
 char threads_active[num_threads];
 cublasHandle_t handles[numStreams];
 
+void *mult(void *threadArg)
+{
 
-void* mult(void * threadArg){
-	
-	struct thread_args* data = (struct thread_args*) threadArg;
-	int threadId = data -> threadId;
-	unsigned long long overflowA = data -> overflowA;
-	unsigned long long overflowB = data -> overflowB;
-	unsigned long long numSubMatrixB = data -> numSubMatrixB;
-	unsigned long long numSubMatrixA = data -> numSubMatrixA;
+	struct thread_args *data = (struct thread_args *)threadArg;
+	int threadId = data->threadId;
+	unsigned long long overflowA = data->overflowA;
+	unsigned long long overflowB = data->overflowB;
+	unsigned long long numSubMatrixB = data->numSubMatrixB;
+	unsigned long long numSubMatrixA = data->numSubMatrixA;
 	unsigned long long subRows = data->subRows;
 	unsigned long long subCols = data->subCols;
 	unsigned long long m = data->m;
@@ -63,61 +61,70 @@ void* mult(void * threadArg){
 	unsigned long long i = data->i;
 	float *C = data->C;
 	float *A = data->A;
-	if(overflowA == 0 && y == numSubMatrixA){
+	if (overflowA == 0 && y == numSubMatrixA)
+	{
 		pthread_exit(0);
 	}
-	for(int j = 0; j < subRows; ++j){
-		for(int x = 0; x < k; ++x){
-			//printf("(t,j,x) = (%d,%d,%d)\n",y,j,x);
-			if(y * subRows + j < m){
-				(a_h[threadId])[j * k + x] = A[y*subRows*k + j*k + x];
-			}else{
+	for (int j = 0; j < subRows; ++j)
+	{
+		for (int x = 0; x < k; ++x)
+		{
+			// printf("(t,j,x) = (%d,%d,%d)\n",y,j,x);
+			if (y * subRows + j < m)
+			{
+				(a_h[threadId])[j * k + x] = A[y * subRows * k + j * k + x];
+			}
+			else
+			{
 				(a_h[threadId])[j * k + x] = 0;
 			}
-		}			
+		}
 	}
-	cudaMemcpyAsync(a[threadId], a_h[threadId], sizeof(float)*subRows*k, cudaMemcpyHostToDevice);
-	doMultiply2MatricesStreaming(subRows, k, a[threadId], k, subCols, b, c[threadId], 0, handles[threadId], ALPHA); 	
-	cudaMemcpyAsync(c_h[threadId], c[threadId], sizeof(float)*subRows*subCols, cudaMemcpyDeviceToHost);
+	cudaMemcpyAsync(a[threadId], a_h[threadId], sizeof(float) * subRows * k, cudaMemcpyHostToDevice);
+	doMultiply2MatricesStreaming(subRows, k, a[threadId], k, subCols, b, c[threadId], 0, handles[threadId], ALPHA);
+	cudaMemcpyAsync(c_h[threadId], c[threadId], sizeof(float) * subRows * subCols, cudaMemcpyDeviceToHost);
 	cudaStreamSynchronize(cudaStreamPerThread);
-	if(i == numSubMatrixB && y == numSubMatrixA){
-		copyElements(C,  c_h[threadId], subRows, subCols, m, n, y, i, overflowA, overflowB, BETA);
-	}else if(i == numSubMatrixB){
-		copyElements(C,  c_h[threadId], subRows, subCols, m, n, y, i, 0, overflowB, BETA);
-	}else if(y == numSubMatrixA){
-		copyElements(C,  c_h[threadId], subRows, subCols, m, n, y, i, overflowA, 0, BETA);
-	}else{
+	if (i == numSubMatrixB && y == numSubMatrixA)
+	{
+		copyElements(C, c_h[threadId], subRows, subCols, m, n, y, i, overflowA, overflowB, BETA);
+	}
+	else if (i == numSubMatrixB)
+	{
+		copyElements(C, c_h[threadId], subRows, subCols, m, n, y, i, 0, overflowB, BETA);
+	}
+	else if (y == numSubMatrixA)
+	{
+		copyElements(C, c_h[threadId], subRows, subCols, m, n, y, i, overflowA, 0, BETA);
+	}
+	else
+	{
 		copyElements(C, c_h[threadId], subRows, subCols, m, n, y, i, 0, 0, BETA);
 	}
 	pthread_mutex_lock(&running_mutex);
-   	running_threads--;
+	running_threads--;
 	threads_active[threadId] = 0;
-   	pthread_mutex_unlock(&running_mutex);
+	pthread_mutex_unlock(&running_mutex);
 	pthread_exit(0);
-	
-
-
 }
-
 
 void msplitm(char transa, char transb, unsigned long long m, unsigned long long n, unsigned long long k, float alpha, float *A, int lda, const float *B, int ldb, float beta, float *C, int ldc)
 {
-    ALPHA = alpha;
-    BETA = beta;
-    printf("entering msplitm \n");
-    float* A_d;
-    float* B_d;
-    float* C_d;
-    unsigned long long A_sz = m * k;
-    unsigned long long B_sz = n * k;
-    unsigned long long C_sz = m * n;
-    unsigned long long MAX =  (unsigned long long )m* (unsigned long long) n / num_submatrix;
-    
-    const unsigned int BLOCK_SIZE = 16;
+	ALPHA = alpha;
+	BETA = beta;
+	printf("entering msplitm \n");
+	float *A_d;
+	float *B_d;
+	float *C_d;
+	unsigned long long A_sz = m * k;
+	unsigned long long B_sz = n * k;
+	unsigned long long C_sz = m * n;
+	unsigned long long MAX = (unsigned long long)m * (unsigned long long)n / num_submatrix;
+
+	const unsigned int BLOCK_SIZE = 16;
 
 	MAX -= MAX % k;
 	printf("MAX: %d\n", MAX);
-	printf("B_sz: %d\n",B_sz);
+	printf("B_sz: %d\n", B_sz);
 	unsigned long long numSubMatrixB = B_sz / MAX;
 	printf("SubmatriciesB: %d\n", numSubMatrixB);
 	unsigned long long SMB_sz = B_sz / numSubMatrixB;
@@ -134,45 +141,57 @@ void msplitm(char transa, char transb, unsigned long long m, unsigned long long 
 	unsigned long long overflowB = n % subCols;
 	printf("overflowB: %d\n", overflowB);
 	printf("overflowA: %d\n", overflowA);
-	cudaMalloc((void**) &b, sizeof(float) * subCols * k);
-	for(int i = 0; i < numStreams; ++i){
+	cudaMalloc((void **)&b, sizeof(float) * subCols * k);
+	for (int i = 0; i < numStreams; ++i)
+	{
 		cublasCreate(&handles[i]);
-		cudaMalloc((void**) &a[i], sizeof(float) * subRows * k);
-		cudaMalloc((void**) &c[i], sizeof(float) * subCols * subRows);
-		cudaMallocHost((void**) &a_h[i], sizeof(float) * subRows * k);
-		cudaMallocHost((void**) &c_h[i], sizeof(float) * subCols * subRows);
+		cudaMalloc((void **)&a[i], sizeof(float) * subRows * k);
+		cudaMalloc((void **)&c[i], sizeof(float) * subCols * subRows);
+		cudaMallocHost((void **)&a_h[i], sizeof(float) * subRows * k);
+		cudaMallocHost((void **)&c_h[i], sizeof(float) * subCols * subRows);
 		threads_active[i] = 0;
 	}
 
-	float* temp3 = 0;
-	cudaMallocHost((void**) &temp3, sizeof(float)*subCols * k );
-	for(unsigned long long i = 0; i < numSubMatrixB + 1; ++i){
+	float *temp3 = 0;
+	cudaMallocHost((void **)&temp3, sizeof(float) * subCols * k);
+	for (unsigned long long i = 0; i < numSubMatrixB + 1; ++i)
+	{
 
-		if(overflowB == 0 && i == numSubMatrixB){
+		if (overflowB == 0 && i == numSubMatrixB)
+		{
 			continue;
 		}
-	
-		for(int j = 0; j < k; ++j){//subCols; ++j){
-			for(int x = 0; x < subCols; ++x){
-				if(i * subCols + x < n){
-					temp3[j * subCols + x] = B[j * n + (i*subCols + x)];
-				}else{
-					temp3[j *subCols + x] = 0;
+
+		for (int j = 0; j < k; ++j)
+		{ // subCols; ++j){
+			for (int x = 0; x < subCols; ++x)
+			{
+				if (i * subCols + x < n)
+				{
+					temp3[j * subCols + x] = B[j * n + (i * subCols + x)];
+				}
+				else
+				{
+					temp3[j * subCols + x] = 0;
 				}
 			}
 		}
-	
-		cudaMemcpyAsync(b, temp3, sizeof(float)*subCols*k, cudaMemcpyHostToDevice);
+
+		cudaMemcpyAsync(b, temp3, sizeof(float) * subCols * k, cudaMemcpyHostToDevice);
 		unsigned long long y = 0;
-		while(y < numSubMatrixA + 1){
-			if(overflowA == 0 && y == numSubMatrixA){
+		while (y < numSubMatrixA + 1)
+		{
+			if (overflowA == 0 && y == numSubMatrixA)
+			{
 				continue;
 			}
-			while(running_threads >= num_threads){
-				//spinlock
+			while (running_threads >= num_threads)
+			{
+				// spinlock
 			}
 			int tid = 0;
-			while(threads_active[tid]){
+			while (threads_active[tid])
+			{
 				tid++;
 			}
 			targs[tid].threadId = tid;
@@ -189,22 +208,21 @@ void msplitm(char transa, char transb, unsigned long long m, unsigned long long 
 			targs[tid].n = n;
 			targs[tid].k = k;
 			targs[tid].i = i;
-			printf("creating thread %d to multiply submatrix %d,%d\n",tid,y,i);
-			
-			 pthread_mutex_lock(&running_mutex);
-			 running_threads++;
-			 threads_active[tid] = 1;
-			 pthread_mutex_unlock(&running_mutex);
-			int rc = pthread_create(&threads[tid], NULL, mult, (void*) &targs[tid]);
+			printf("creating thread %d to multiply submatrix %d,%d\n", tid, y, i);
+
+			pthread_mutex_lock(&running_mutex);
+			running_threads++;
+			threads_active[tid] = 1;
+			pthread_mutex_unlock(&running_mutex);
+			int rc = pthread_create(&threads[tid], NULL, mult, (void *)&targs[tid]);
 			++y;
 		}
 		int ret = 0;
-		for(int x = 0; x < num_threads; x++)
-  			pthread_join(threads[x], NULL);
-	
-	
+		for (int x = 0; x < num_threads; x++)
+			pthread_join(threads[x], NULL);
 	}
-	for(int i = 0; i < numStreams; ++i){
+	for (int i = 0; i < numStreams; ++i)
+	{
 		cublasDestroy(handles[i]);
 		cudaFree(a[i]);
 		cudaFree(c[i]);
@@ -213,10 +231,4 @@ void msplitm(char transa, char transb, unsigned long long m, unsigned long long 
 	}
 	cudaFree(b);
 	cudaFreeHost(temp3);
-    
 }
-
-
-
-
-
