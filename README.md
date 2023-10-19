@@ -10,7 +10,7 @@ Currently, this project has only been tested with square matrices, but it should
 # Introduction:
 For normal matricies, using cuBLAS alone would be sufficient. For extremely large matrices, whose memory does not fit into the GPU global memory, an alternative method is to split the multiplicands into block matrices and perform the multiplication as shown in the figure below.
 
-![Alt text](/Readme/blockMult.jpg?raw=true "Block Matrix Multiplication")
+![Alt text](/figures/blockMult.jpg?raw=true "Block Matrix Multiplication")
 
 This repository contains four algorithms that implement the above equation in different ways. The algorithms here each have their own specific use cases, based on the advantages each one provides.  
 
@@ -32,7 +32,7 @@ This algorithm allocates memory for one submatrix of the first multiplicand and 
 
     GPU Memory Usage =(1/numSubmatricies^2 + 2/numSubmatrices) * N^2 * sizeof(type)
 
-![Alt text](/Readme/Alg1.jpg?raw=true "Algorithm 1 Visual Profile")
+![Alt text](/figures/Alg1.jpg?raw=true "Algorithm 1 Visual Profile")
 
 # Algorithm 2: Load one of the multiplicands entirely, and compute each row group together.
 
@@ -40,7 +40,7 @@ This algorithm allocates memory for one submatrix of the first multiplicand and 
 
     GPU Memory Usage =(1 + 2/numSubmatrices) * N^2 * sizeof(type)
 
-![Alt text](/Readme/Alg2.jpg?raw=true "Algorithm 2 Visual Profile")
+![Alt text](/figures/Alg2.jpg?raw=true "Algorithm 2 Visual Profile")
 
 # Algorithm 3: Multithreaded streaming version of Algorithm 1 
 
@@ -48,7 +48,7 @@ Algorithm 3 is the first algorithm, but pipelined with CUDA streams, with each t
 
     Gpu and Add. Host Mem Usage =(numStreams/numSubmatricies^2 + (1 + numStreams)/numSubmatrices) * N^2 * sizeof(type)
 
-![Alt text](/Readme/Alg3.jpg?raw=true "Algorithm 3 Visual Profile")
+![Alt text](/figures/Alg3.jpg?raw=true "Algorithm 3 Visual Profile")
 
 # Algorithm 4: Streaming Version of Algorithm 1
 
@@ -56,4 +56,4 @@ Algorithm 4 does not use multiple threads on the CPU; instead, it exploits the n
 
     Gpu and Add. Host Mem Usage =(numStreams/numSubmatricies^2 + (1 + numStreams)/numSubmatrices) * N^2 * sizeof(type)
 
-![Alt text](/Readme/Alg4.jpg?raw=true "Algorithm 4 Visual Profile")
+![Alt text](/figures/Alg4.jpg?raw=true "Algorithm 4 Visual Profile")
