@@ -2,16 +2,16 @@
 #include <stdlib.h>
 
 #ifdef KERNEL1
-#include "kernel1.cu"
+#include "kernel1.cuh"
 #endif
 #ifdef KERNEL2
-#include "kernel2.cu"
+#include "kernel2.cuh"
 #endif
 #ifdef KERNEL3
-#include "kernel3.cu"
+#include "kernel3.cuh"
 #endif
 #ifdef KERNEL4
-#include "kernel4.cu"
+#include "kernel4.cuh"
 #endif
 
 #include "support.h"
