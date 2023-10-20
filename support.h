@@ -1,6 +1,18 @@
 #ifndef __SUPPORTH__
 #define __SUPPORTH__
 
+#define CUDA_ERR_CHECK(stmt)                                                   \
+    do                                                                         \
+    {                                                                          \
+        cudaError_t err = stmt;                                                \
+        if (err != cudaSuccess)                                                \
+        {                                                                      \
+            fprintf(stderr, "Error %d at " __FILE__ ":%d : %s\n",              \
+                    static_cast<int>(err), __LINE__, cudaGetErrorString(err)); \
+            exit(-1);                                                          \
+        }                                                                      \
+    } while (0)
+
 #include <sys/time.h>
 
 typedef struct

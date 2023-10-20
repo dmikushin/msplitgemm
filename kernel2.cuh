@@ -2,6 +2,7 @@
 #include <cublas_v2.h>
 
 #include "common.h"
+#include "support.h"
 
 const int num_submatrix = 8;
 
@@ -30,12 +31,8 @@ void copyElements(float *out, float *entry, unsigned long long eRows, unsigned l
 void msplitm(char transa, char transb, unsigned long long m, unsigned long long n, unsigned long long k, float alpha, const float *A, int lda, const float *B, int ldb, float beta, float *C, int ldc)
 {
 	std::cout << "entering msplitm" << std::endl;
-	float *A_d;
-	float *B_d;
-	float *C_d;
 	unsigned long long A_sz = m * k;
 	unsigned long long B_sz = n * k;
-	unsigned long long C_sz = m * n;
 	unsigned long long MAX = (unsigned long long)m * (unsigned long long)n / num_submatrix;
 
 	MAX -= MAX % k;
@@ -75,8 +72,8 @@ void msplitm(char transa, char transb, unsigned long long m, unsigned long long 
 				}
 			}
 		}
-		cudaMalloc((void **)&B_split[i], sizeof(float) * subCols * k);
-		cudaMemcpy(B_split[i], temp, sizeof(float) * subCols * k, cudaMemcpyHostToDevice);
+		CUDA_ERR_CHECK(cudaMalloc((void **)&B_split[i], sizeof(float) * subCols * k));
+		CUDA_ERR_CHECK(cudaMemcpy(B_split[i], temp, sizeof(float) * subCols * k, cudaMemcpyHostToDevice));
 		free(temp);
 	}
 	for (unsigned long long i = 0; i < numSubMatrixA + 1; ++i)
@@ -102,9 +99,9 @@ void msplitm(char transa, char transb, unsigned long long m, unsigned long long 
 		}
 		float *temp2 = 0;
 		float *temp3 = 0;
-		cudaMalloc((void **)&temp2, sizeof(float) * subRows * k);
-		cudaMalloc((void **)&temp3, sizeof(float) * subCols * subRows);
-		cudaMemcpy(temp2, temp, sizeof(float) * subRows * k, cudaMemcpyHostToDevice);
+		CUDA_ERR_CHECK(cudaMalloc((void **)&temp2, sizeof(float) * subRows * k));
+		CUDA_ERR_CHECK(cudaMalloc((void **)&temp3, sizeof(float) * subCols * subRows));
+		CUDA_ERR_CHECK(cudaMemcpy(temp2, temp, sizeof(float) * subRows * k, cudaMemcpyHostToDevice));
 		free(temp);
 
 		std::cout << "Running multiply for row group " << i << std::endl;
@@ -117,7 +114,7 @@ void msplitm(char transa, char transb, unsigned long long m, unsigned long long 
 			}
 			doMultiply2Matrices(subRows, k, temp2, k, subCols, B_split[x], temp3, alpha);
 
-			cudaMemcpy(temp, temp3, sizeof(float) * subRows * subCols, cudaMemcpyDeviceToHost);
+			CUDA_ERR_CHECK(cudaMemcpy(temp, temp3, sizeof(float) * subRows * subCols, cudaMemcpyDeviceToHost));
 
 			if (x == numSubMatrixB && i == numSubMatrixA)
 			{
@@ -137,7 +134,7 @@ void msplitm(char transa, char transb, unsigned long long m, unsigned long long 
 			}
 		}
 
-		cudaFree(temp2);
-		cudaFree(temp3);
+		CUDA_ERR_CHECK(cudaFree(temp2));
+		CUDA_ERR_CHECK(cudaFree(temp3));
 	}
 }

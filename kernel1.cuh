@@ -2,18 +2,15 @@
 #include <cublas_v2.h>
 
 #include "common.h"
+#include "support.h"
 
 const int num_submatrix = 8;
 
 void msplitm(char transa, char transb, unsigned long long m, unsigned long long n, unsigned long long k, float alpha, const float *A, int lda, const float *B, int ldb, float beta, float *C, int ldc)
 {
 	std::cout << "entering msplitm" << std::endl;
-	float *A_d;
-	float *B_d;
-	float *C_d;
 	unsigned long long A_sz = m * k;
 	unsigned long long B_sz = n * k;
-	unsigned long long C_sz = m * n;
 	unsigned long long MAX = (unsigned long long)m * (unsigned long long)n / num_submatrix;
 
 	MAX -= MAX % k;
@@ -57,8 +54,8 @@ void msplitm(char transa, char transb, unsigned long long m, unsigned long long 
 				}
 			}
 		}
-		cudaMalloc((void **)&b, sizeof(float) * subCols * k);
-		cudaMemcpy(b, temp3, sizeof(float) * subCols * k, cudaMemcpyHostToDevice);
+		CUDA_ERR_CHECK(cudaMalloc((void **)&b, sizeof(float) * subCols * k));
+		CUDA_ERR_CHECK(cudaMemcpy(b, temp3, sizeof(float) * subCols * k, cudaMemcpyHostToDevice));
 		free(temp3);
 		for (unsigned long long y = 0; y < numSubMatrixA + 1; ++y)
 		{
@@ -83,11 +80,11 @@ void msplitm(char transa, char transb, unsigned long long m, unsigned long long 
 			}
 			float *a = 0;
 			float *c = 0;
-			cudaMalloc((void **)&a, sizeof(float) * subRows * k);
-			cudaMalloc((void **)&c, sizeof(float) * subCols * subRows);
-			cudaMemcpy(a, temp, sizeof(float) * subRows * k, cudaMemcpyHostToDevice);
+			CUDA_ERR_CHECK(cudaMalloc((void **)&a, sizeof(float) * subRows * k));
+			CUDA_ERR_CHECK(cudaMalloc((void **)&c, sizeof(float) * subCols * subRows));
+			CUDA_ERR_CHECK(cudaMemcpy(a, temp, sizeof(float) * subRows * k, cudaMemcpyHostToDevice));
 			doMultiply2Matrices(subRows, k, a, k, subCols, b, c, alpha);
-			cudaMemcpy(temp, c, sizeof(float) * subRows * subCols, cudaMemcpyDeviceToHost);
+			CUDA_ERR_CHECK(cudaMemcpy(temp, c, sizeof(float) * subRows * subCols, cudaMemcpyDeviceToHost));
 			if (i == numSubMatrixB && y == numSubMatrixA)
 			{
 				copyElements(C, temp, subRows, subCols, m, n, y, i, overflowA, overflowB, beta);
@@ -105,10 +102,10 @@ void msplitm(char transa, char transb, unsigned long long m, unsigned long long 
 				copyElements(C, temp, subRows, subCols, m, n, y, i, 0, 0, beta);
 			}
 			free(temp);
-			cudaFree(a);
-			cudaFree(c);
+			CUDA_ERR_CHECK(cudaFree(a));
+			CUDA_ERR_CHECK(cudaFree(c));
 		}
 
-		cudaFree(b);
+		CUDA_ERR_CHECK(cudaFree(b));
 	}
 }

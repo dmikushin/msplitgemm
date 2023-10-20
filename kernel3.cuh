@@ -2,6 +2,7 @@
 #include <cublas_v2.h>
 
 #include "common.h"
+#include "support.h"
 
 const int num_submatrix = 2;
 const int numStreams = 2;
@@ -17,12 +18,8 @@ cublasHandle_t handles[numStreams];
 void msplitm(char transa, char transb, unsigned long long m, unsigned long long n, unsigned long long k, float alpha, float *A, int lda, const float *B, int ldb, float beta, float *C, int ldc)
 {
     std::cout << "entering msplitm" << std::endl;
-    float *A_d;
-    float *B_d;
-    float *C_d;
     unsigned long long A_sz = m * k;
     unsigned long long B_sz = n * k;
-    unsigned long long C_sz = m * n;
     unsigned long long MAX = (unsigned long long)m * (unsigned long long)n / num_submatrix;
 
     MAX -= MAX % k;
@@ -47,14 +44,14 @@ void msplitm(char transa, char transb, unsigned long long m, unsigned long long 
     std::cout << "overflowA: " << overflowA << std::endl;
     for (int i = 0; i < numStreams; ++i)
     {
-        cudaSetDevice(i);
+        CUDA_ERR_CHECK(cudaSetDevice(i));
         cublasCreate(&handles[i]);
-        cudaStreamCreate(&streams[i]);
-        cudaMalloc((void **)&b[i], sizeof(float) * subCols * k);
-        cudaMalloc((void **)&a[i], sizeof(float) * subRows * k);
-        cudaMalloc((void **)&c[i], sizeof(float) * subCols * subRows);
-        cudaMallocHost((void **)&a_h[i], sizeof(float) * subRows * k);
-        cudaMallocHost((void **)&c_h[i], sizeof(float) * subCols * subRows);
+        CUDA_ERR_CHECK(cudaStreamCreate(&streams[i]));
+        CUDA_ERR_CHECK(cudaMalloc((void **)&b[i], sizeof(float) * subCols * k));
+        CUDA_ERR_CHECK(cudaMalloc((void **)&a[i], sizeof(float) * subRows * k));
+        CUDA_ERR_CHECK(cudaMalloc((void **)&c[i], sizeof(float) * subCols * subRows));
+        CUDA_ERR_CHECK(cudaMallocHost((void **)&a_h[i], sizeof(float) * subRows * k));
+        CUDA_ERR_CHECK(cudaMallocHost((void **)&c_h[i], sizeof(float) * subCols * subRows));
     }
 
     for (unsigned long long i = 0; i < numSubMatrixB + 1; ++i)
@@ -68,13 +65,13 @@ void msplitm(char transa, char transb, unsigned long long m, unsigned long long 
         int copynumB = i == numSubMatrixB ? overflowB : subCols;
         for (int j = 0; j < numStreams; ++j)
         {
-            cudaSetDevice(j);
+            CUDA_ERR_CHECK(cudaSetDevice(j));
             if (i == numSubMatrixB)
             {
-                cudaMemsetAsync(a, 0, sizeof(float) * k * subCols, streams[j]);
+                CUDA_ERR_CHECK(cudaMemsetAsync(a, 0, sizeof(float) * k * subCols, streams[j]));
             }
-            cudaMemcpy2DAsync(b[j], subCols * sizeof(float), B + (i * subCols), n * sizeof(float),
-                              copynumB * sizeof(float), k, cudaMemcpyHostToDevice, streams[j]);
+            CUDA_ERR_CHECK(cudaMemcpy2DAsync(b[j], subCols * sizeof(float), B + (i * subCols), n * sizeof(float),
+                              copynumB * sizeof(float), k, cudaMemcpyHostToDevice, streams[j]));
         }
         unsigned long long y = 0;
         int streamsActive = 0;
@@ -85,25 +82,25 @@ void msplitm(char transa, char transb, unsigned long long m, unsigned long long 
                 break;
             }
             int copynumA = y == numSubMatrixA ? overflowA : subRows;
-            cudaSetDevice(y % numStreams);
+            CUDA_ERR_CHECK(cudaSetDevice(y % numStreams));
             if (y == numSubMatrixA)
             {
-                cudaMemsetAsync(a, 0, sizeof(float) * k * subRows, streams[y % numStreams]);
+                CUDA_ERR_CHECK(cudaMemsetAsync(a, 0, sizeof(float) * k * subRows, streams[y % numStreams]));
             }
-            cudaMemcpy2DAsync(a[y % numStreams], k * sizeof(float), A + (k * y * subRows), k * sizeof(float),
-                              k * sizeof(float), copynumA, cudaMemcpyHostToDevice, streams[y % numStreams]);
+            CUDA_ERR_CHECK(cudaMemcpy2DAsync(a[y % numStreams], k * sizeof(float), A + (k * y * subRows), k * sizeof(float),
+                              k * sizeof(float), copynumA, cudaMemcpyHostToDevice, streams[y % numStreams]));
 
             std::cout << "sending multiply " << y << ", " << i << " to stream " <<
                 y % numStreams << std::endl;
             doMultiply2MatricesStreaming(subRows, k, a[y % numStreams], k, subCols, b[y % numStreams], c[y % numStreams], streams[y % numStreams], handles[y % numStreams], alpha);
-            cudaMemcpyAsync(c_h[y % numStreams], c[y % numStreams], sizeof(float) * subRows * subCols, cudaMemcpyDeviceToHost, streams[y % numStreams]);
+            CUDA_ERR_CHECK(cudaMemcpyAsync(c_h[y % numStreams], c[y % numStreams], sizeof(float) * subRows * subCols, cudaMemcpyDeviceToHost, streams[y % numStreams]));
 
             streamsActive++;
             if (y % numStreams == numStreams - 1)
             {
                 for (int s = 0; s < numStreams; ++s)
                 {
-                    cudaStreamSynchronize(streams[s]);
+                    CUDA_ERR_CHECK(cudaStreamSynchronize(streams[s]));
                     int currWork = count * numStreams + s;
                     // TODO: We can probably do a direct copy from the device to the appropriate output location on the host
                     // But we need to handle the beta term on the GPU
@@ -132,7 +129,7 @@ void msplitm(char transa, char transb, unsigned long long m, unsigned long long 
 
         for (int s = 0; s < streamsActive; ++s)
         {
-            cudaStreamSynchronize(streams[s]);
+            CUDA_ERR_CHECK(cudaStreamSynchronize(streams[s]));
             int currWork = count * numStreams + s;
             if (i == numSubMatrixB && currWork == numSubMatrixA)
             {
@@ -155,12 +152,12 @@ void msplitm(char transa, char transb, unsigned long long m, unsigned long long 
 
     for (int i = 0; i < numStreams; ++i)
     {
-        cudaSetDevice(i);
-        cudaFree(a[i]);
-        cudaFree(c[i]);
-        cudaFreeHost(a_h[i]);
-        cudaFreeHost(c_h[i]);
-        cudaStreamDestroy(streams[i]);
+        CUDA_ERR_CHECK(cudaSetDevice(i));
+        CUDA_ERR_CHECK(cudaFree(a[i]));
+        CUDA_ERR_CHECK(cudaFree(c[i]));
+        CUDA_ERR_CHECK(cudaFreeHost(a_h[i]));
+        CUDA_ERR_CHECK(cudaFreeHost(c_h[i]));
+        CUDA_ERR_CHECK(cudaStreamDestroy(streams[i]));
     }
-    cudaFree(b);
+    CUDA_ERR_CHECK(cudaFree(b));
 }

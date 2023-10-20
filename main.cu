@@ -16,7 +16,6 @@
 int main(int argc, char *argv[])
 {
     Timer timer;
-    cudaError_t cuda_ret;
 
     // Initialize host variables ----------------------------------------------
 
@@ -24,11 +23,9 @@ int main(int argc, char *argv[])
     startTime(&timer);
 
     float *A_h, *B_h, *C_h;
-    float *A_d, *B_d, *C_d;
     size_t A_sz, B_sz, C_sz;
     unsigned matArow, matAcol;
     unsigned matBrow, matBcol;
-    dim3 dim_grid, dim_block;
 
     if (argc == 1)
     {
@@ -61,19 +58,19 @@ int main(int argc, char *argv[])
     B_sz = matBrow * matBcol;
     C_sz = matArow * matBcol;
 
-    cudaMallocHost((void **)&A_h, sizeof(float) * A_sz);
+    CUDA_ERR_CHECK(cudaMallocHost((void **)&A_h, sizeof(float) * A_sz));
     for (unsigned int i = 0; i < A_sz; i++)
     {
         A_h[i] = (rand() % 100) / 100.00;
     }
 
-    cudaMallocHost((void **)&B_h, sizeof(float) * B_sz);
+    CUDA_ERR_CHECK(cudaMallocHost((void **)&B_h, sizeof(float) * B_sz));
     for (unsigned int i = 0; i < B_sz; i++)
     {
         B_h[i] = (rand() % 100) / 100.00;
     }
 
-    cudaMallocHost((void **)&C_h, sizeof(float) * C_sz);
+    CUDA_ERR_CHECK(cudaMallocHost((void **)&C_h, sizeof(float) * C_sz));
 
     stopTime(&timer);
     std::cout << elapsedTime(timer) << "s" << std::endl;
@@ -86,7 +83,7 @@ int main(int argc, char *argv[])
     startTime(&timer);
     msplitm('N', 'N', matArow, matBcol, matBrow, 1.0f, A_h, matArow, B_h, matBrow, 0.0f, C_h, matBrow);
 
-    cuda_ret = cudaDeviceSynchronize();
+    CUDA_ERR_CHECK(cudaDeviceSynchronize());
     stopTime(&timer);
     std::cout << elapsedTime(timer) << " s" << std::endl;
 
@@ -95,9 +92,9 @@ int main(int argc, char *argv[])
 
     // Free memory ------------------------------------------------------------
 
-    cudaFreeHost(A_h);
-    cudaFreeHost(B_h);
-    cudaFreeHost(C_h);
+    CUDA_ERR_CHECK(cudaFreeHost(A_h));
+    CUDA_ERR_CHECK(cudaFreeHost(B_h));
+    CUDA_ERR_CHECK(cudaFreeHost(C_h));
 
     return 0;
 }
